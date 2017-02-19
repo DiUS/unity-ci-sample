@@ -1,0 +1,14 @@
+packer/ansible/roles/ansible*
+*.env
+cache_*.json
+
+# ============ #
+# OS generated #
+# ============ #
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

@@ -1,0 +1,85 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Jenkins Instance Profile & Roles",
+  "Parameters": {},
+  "Resources": {
+    "AutomationRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Principal": {
+                "Service": "ec2.amazonaws.com"
+              },
+              "Effect": "Allow",
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "iam-pass-role",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Resource": "*",
+                  "Effect": "Allow",
+                  "Action": [
+                    "iam:GetUser",
+                    "iam:AssumeRole",
+                    "iam:PassRole"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "PolicyName": "packer",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Resource": "*",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:*",
+                    "cloudformation:DescribeStacks"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "PolicyName": "s3-jenkins",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Resource": "arn:aws:s3:::unity-ci-provisioning/*",
+                  "Effect": "Allow",
+                  "Action": "s3:*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "JenkinsInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [ { "Ref": "AutomationRole" } ]
+      }
+    }
+  },
+  "Outputs": {
+    "JenkinsInstanceProfileId": {
+      "Value": { "Ref": "JenkinsInstanceProfile" }
+    }
+  }
+}

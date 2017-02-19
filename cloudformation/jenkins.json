@@ -1,0 +1,180 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Jenkins EC2, ASG, & ELB",
+  "Parameters": {
+    "VpcId": {
+      "Type": "AWS::EC2::VPC::Id"
+    },
+    "SubnetAPublicId": {
+      "Type": "AWS::EC2::Subnet::Id"
+    },
+    "SubnetBPublicId": {
+      "Type": "AWS::EC2::Subnet::Id"
+    },
+    "SubnetCPublicId": {
+      "Type": "AWS::EC2::Subnet::Id"
+    },
+    "SecurityGroupVpcDefaultId": {
+      "Type": "AWS::EC2::SecurityGroup::Id"
+    },
+    "JenkinsMasterProfileId": {
+      "Type": "String"
+    },
+    "AmiId": {
+      "Type": "AWS::EC2::Image::Id"
+    },
+    "InstanceType": {
+      "Type": "String",
+      "Default": "t2.small",
+      "AllowedValues": [
+        "t2.micro", "t2.small", "t2.medium",
+        "c4.large", "c4.xlarge",
+        "m4.large", "m4.xlarge"
+      ]
+    },
+    "EbsVolumeSize": {
+      "Type": "Number",
+      "Default": 20,
+      "AllowedValues": [
+        8, 12, 16, 20
+      ]
+    },
+    "KeyName": {
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "Default": "jenkins"
+    },
+    "HealthCheckGracePeriod": {
+      "Type": "Number",
+      "Default": 300
+    },
+    "AsgMinSize": {
+      "Type": "Number",
+      "Default": 1
+    },
+    "AsgMaxSize": {
+      "Type": "Number",
+      "Default": 2
+    },
+    "AsgDesiredCapacity": {
+      "Type": "Number",
+      "Default": 1
+    }
+  },
+  "Resources": {
+    "LoadBalancer": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties": {
+        "LoadBalancerName": "jenkins-master-elb",
+        "Scheme": "internet-facing",
+        "Subnets": [
+          { "Ref": "SubnetAPublicId" },
+          { "Ref": "SubnetBPublicId" },
+          { "Ref": "SubnetCPublicId" }
+        ],
+        "SecurityGroups": [
+          { "Ref": "SecurityGroupVpcDefaultId" }
+        ],
+        "Listeners": [
+          {
+            "LoadBalancerPort": 80,
+            "InstancePort": 8080,
+            "Protocol": "HTTP"
+          }
+        ],
+        "HealthCheck": {
+          "Target": "HTTP:8080/cc.xml",
+          "HealthyThreshold": 2,
+          "UnhealthyThreshold": 5,
+          "Interval": 30,
+          "Timeout": 15
+        }
+      }
+    },
+
+    "LaunchConfig": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+        "ImageId": { "Ref": "AmiId" },
+        "InstanceType": { "Ref": "InstanceType" },
+        "AssociatePublicIpAddress": "true",
+        "IamInstanceProfile": { "Ref": "JenkinsMasterProfileId" },
+        "SecurityGroups": [
+          { "Ref": "SecurityGroupVpcDefaultId" },
+          { "Ref": "SecurityGroupInstance" }
+        ],
+        "KeyName": { "Ref": "KeyName" },
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/sda1",
+            "Ebs": {
+              "VolumeSize": { "Ref": "EbsVolumeSize" },
+              "VolumeType": "gp2",
+              "DeleteOnTermination": "true"
+            }
+          }
+        ],
+        "UserData": { "Fn::Base64": { "Fn::Join": [ "",
+          [
+            "#cloud-config", "\n",
+            "runcmd:", "\n",
+            "- sudo su - jenkins -c 'cd /var/lib/jenkins && ./jenkins_import.sh'", "\n"
+          ]
+        ] } }
+      }
+    },
+
+    "SecurityGroupInstance": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": { "Ref": "VpcId" },
+        "GroupDescription": "Jenkins master EC2 instance security group",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "unity-ci-jenkins-instance"
+          }
+        ]
+      }
+    },
+    "SecurityGroupIngressInstanceHTTP": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "SecurityGroupInstance" },
+        "SourceSecurityGroupId": { "Ref": "SecurityGroupVpcDefaultId" },
+        "IpProtocol": "tcp",
+        "FromPort": 8080,
+        "ToPort": 8080
+      }
+    },
+
+    "AutoScalingGroup": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+        "VPCZoneIdentifier": [
+          { "Ref": "SubnetAPublicId" },
+          { "Ref": "SubnetBPublicId" },
+          { "Ref": "SubnetCPublicId" }
+        ],
+        "HealthCheckGracePeriod": { "Ref": "HealthCheckGracePeriod" },
+        "HealthCheckType": "EC2",
+        "LaunchConfigurationName": { "Ref": "LaunchConfig" },
+        "MinSize": { "Ref": "AsgMinSize" },
+        "MaxSize": { "Ref": "AsgMaxSize" },
+        "DesiredCapacity": { "Ref": "AsgDesiredCapacity" },
+        "LoadBalancerNames": [ { "Ref": "LoadBalancer" } ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "jenkins-master",
+            "PropagateAtLaunch": true
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "AmiId": {
+      "Value": { "Ref": "AmiId" }
+    }
+  }
+}

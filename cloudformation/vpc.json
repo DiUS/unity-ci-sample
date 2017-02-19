@@ -1,0 +1,339 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "VPC with public subnets for 3 AZs, local office network ingress only",
+  "Parameters": {
+    "VpcName": {
+      "Type": "String",
+      "Default": "unity-ci-vpc"
+    },
+    "VpcCIDR": {
+      "Type": "String",
+      "Default": "10.0.0.0/16"
+    },
+    "SubnetACIDR": {
+      "Type": "String",
+      "Default": "10.0.0.0/24"
+    },
+    "SubnetBCIDR": {
+      "Type": "String",
+      "Default": "10.0.1.0/24"
+    },
+    "SubnetCCIDR": {
+      "Type": "String",
+      "Default": "10.0.2.0/24"
+    },
+    "GatewayMelbourneCIDR": {
+      "Type": "String",
+      "Default": "mel.mel.mel.mel/32"
+    },
+    "GatewaySydneyCIDR": {
+      "Type": "String",
+      "Default": "syd.syd.syd.syd/32"
+    }
+  },
+  "Resources": {
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "EnableDnsHostnames": "true",
+        "CidrBlock": { "Ref": "VpcCIDR" },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Ref": "VpcName" }
+          }
+        ]
+      }
+    },
+
+    "SubnetAPublic": {
+      "Type": "AWS::EC2::Subnet",
+      "DependsOn": "VPC",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "AvailabilityZone": { "Fn::Select": [ 0, { "Fn::GetAZs": { "Ref": "AWS::Region" } } ] },
+        "CidrBlock": { "Ref": "SubnetACIDR" },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ "-", [ { "Ref": "VpcName" }, "public", "a" ] ] }
+          }
+        ]
+      }
+    },
+    "SubnetBPublic": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "AvailabilityZone": { "Fn::Select": [ 1, { "Fn::GetAZs": { "Ref": "AWS::Region" } } ] },
+        "CidrBlock": { "Ref": "SubnetBCIDR" },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ "-", [ { "Ref": "VpcName" }, "public", "b" ] ] }
+          }
+        ]
+      }
+    },
+    "SubnetCPublic": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "AvailabilityZone": { "Fn::Select": [ 2, { "Fn::GetAZs": { "Ref": "AWS::Region" } } ] },
+        "CidrBlock": { "Ref": "SubnetCCIDR" },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ "-", [ { "Ref": "VpcName" }, "public", "c" ] ] }
+          }
+        ]
+      }
+    },
+
+    "InternetGateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Ref": "VpcName" }
+          }
+        ]
+      }
+    },
+    "InternetGatewayAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "InternetGatewayId": { "Ref": "InternetGateway" }
+      }
+    },
+    "RouteTablePublic": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "Tags": [ {
+          "Key": "Name",
+          "Value": { "Fn::Join": [ "-", [ { "Ref": "VpcName" }, "public" ] ] }
+        } ]
+      }
+    },
+    "RouteInternetGatewayPublic": {
+      "Type": "AWS::EC2::Route",
+      "DependsOn": "InternetGatewayAttachment",
+      "Properties": {
+        "RouteTableId": { "Ref": "RouteTablePublic" },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": { "Ref": "InternetGateway" }
+      }
+    },
+
+    "RouteTableAssociationSubnetAPublic": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": { "Ref": "SubnetAPublic" },
+        "RouteTableId": { "Ref": "RouteTablePublic" }
+      }
+    },
+    "RouteTableAssociationSubnetBPublic": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": { "Ref": "SubnetBPublic" },
+        "RouteTableId": { "Ref": "RouteTablePublic" }
+      }
+    },
+    "RouteTableAssociationSubnetCPublic": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": { "Ref": "SubnetCPublic" },
+        "RouteTableId": { "Ref": "RouteTablePublic" }
+      }
+    },
+
+    "NetworkAcl": {
+      "Type": "AWS::EC2::NetworkAcl",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Ref": "VpcName" }
+          }
+        ]
+      }
+    },
+    "NetworkAclEntryIngressAll": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "CidrBlock": "0.0.0.0/0",
+        "Egress": false,
+        "NetworkAclId": { "Ref": "NetworkAcl" },
+        "Protocol": -1,
+        "RuleAction": "allow",
+        "RuleNumber": 10
+      }
+    },
+    "NetworkAclEntryEgressAll": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "CidrBlock": "0.0.0.0/0",
+        "Egress": true,
+        "NetworkAclId": { "Ref": "NetworkAcl" },
+        "Protocol": -1,
+        "RuleAction": "allow",
+        "RuleNumber": 20
+      }
+    },
+
+    "SubnetNetworkAclAssociationSubnetAPublic": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "NetworkAclId": { "Ref": "NetworkAcl" },
+        "SubnetId": { "Ref": "SubnetAPublic" }
+      }
+    },
+    "SubnetNetworkAclAssociationSubnetBPublic": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "NetworkAclId": { "Ref": "NetworkAcl" },
+        "SubnetId": { "Ref": "SubnetBPublic" }
+      }
+    },
+    "SubnetNetworkAclAssociationSubnetCPublic": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "NetworkAclId": { "Ref": "NetworkAcl" },
+        "SubnetId": { "Ref": "SubnetCPublic" }
+      }
+    },
+
+    "SecurityGroupDefault": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Default security group",
+        "VpcId": { "Ref": "VPC" },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ "-", [ { "Ref": "VpcName" }, "default" ] ] }
+          }
+        ]
+      }
+    },
+    "SecurityGroupDefaultIngressICMPInternal": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "SecurityGroupDefault" },
+        "SourceSecurityGroupId": { "Ref": "SecurityGroupDefault" },
+        "IpProtocol": "icmp",
+        "FromPort": 8,
+        "ToPort": -1
+      }
+    },
+    "SecurityGroupDefaultIngressICMPMelbourne": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "SecurityGroupDefault" },
+        "CidrIp": { "Ref": "GatewayMelbourneCIDR" },
+        "IpProtocol": "icmp",
+        "FromPort": 8,
+        "ToPort": -1
+      }
+    },
+    "SecurityGroupDefaultIngressICMPSydney": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "SecurityGroupDefault" },
+        "CidrIp": { "Ref": "GatewaySydneyCIDR" },
+        "IpProtocol": "icmp",
+        "FromPort": 8,
+        "ToPort": -1
+      }
+    },
+    "SecurityGroupDefaultIngressSSHInternal": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "SecurityGroupDefault" },
+        "SourceSecurityGroupId": { "Ref": "SecurityGroupDefault" },
+        "IpProtocol": "tcp",
+        "FromPort": 22,
+        "ToPort": 22
+      }
+    },
+    "SecurityGroupDefaultIngressSSHMelbourne": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "SecurityGroupDefault" },
+        "CidrIp": { "Ref": "GatewayMelbourneCIDR" },
+        "IpProtocol": "tcp",
+        "FromPort": 22,
+        "ToPort": 22
+      }
+    },
+    "SecurityGroupDefaultIngressSSHSydney": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "SecurityGroupDefault" },
+        "CidrIp": { "Ref": "GatewaySydneyCIDR" },
+        "IpProtocol": "tcp",
+        "FromPort": 22,
+        "ToPort": 22
+      }
+    },
+    "SecurityGroupDefaultIngressHTTPInternal": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "SecurityGroupDefault" },
+        "SourceSecurityGroupId": { "Ref": "SecurityGroupDefault" },
+        "IpProtocol": "tcp",
+        "FromPort": 80,
+        "ToPort": 80
+      }
+    },
+    "SecurityGroupDefaultIngressHTTPMelbourne": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "SecurityGroupDefault" },
+        "CidrIp": { "Ref": "GatewayMelbourneCIDR" },
+        "IpProtocol": "tcp",
+        "FromPort": 80,
+        "ToPort": 80
+      }
+    },
+    "SecurityGroupDefaultIngressHTTPSydney": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "SecurityGroupDefault" },
+        "CidrIp": { "Ref": "GatewaySydneyCIDR" },
+        "IpProtocol": "tcp",
+        "FromPort": 80,
+        "ToPort": 80
+      }
+    },
+    "SecurityGroupDefaultEgressAll": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": { "Ref": "SecurityGroupDefault" },
+        "CidrIp": "0.0.0.0/0",
+        "IpProtocol": -1
+      }
+    }
+  },
+  "Outputs": {
+    "VpcId": {
+      "Value": { "Ref": "VPC" }
+    },
+    "SubnetAPublicId": {
+      "Value": { "Ref": "SubnetAPublic" }
+    },
+    "SubnetBPublicId": {
+      "Value": { "Ref": "SubnetBPublic" }
+    },
+    "SubnetCPublicId": {
+      "Value": { "Ref": "SubnetCPublic" }
+    },
+    "SecurityGroupDefaultId": {
+      "Value": { "Ref": "SecurityGroupDefault" }
+    }
+  }
+}
