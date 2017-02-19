@@ -1,0 +1,6 @@
+---
+- name: Install pip
+  apt: name=python-pip state=latest
+
+- name: Install awscli
+  pip: name=awscli

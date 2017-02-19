@@ -1,0 +1,31 @@
+- name: Download SDK tools
+  get_url:
+    url: "{{ android_sdk_basepath }}/{{ android_sdk }}"
+    dest: /tmp/{{ android_sdk }}
+  register: sdk_file
+  become_user: "{{ automation_user }}"
+
+- name: Extract SDK tools
+  unarchive:
+    remote_src: yes
+    src: "{{ sdk_file.dest }}"
+    dest: /opt/
+    owner: "{{ automation_user }}"
+    group: "{{ automation_user }}"
+    creates: "{{ sdk_install_dir }}"
+
+- name: Cleanup installer
+  shell: "rm -rf {{ sdk_file.dest }}"
+
+- name: Set PATH for SDK tools
+  template:
+    src: env.j2
+    dest: /etc/profile.d/android.sh
+
+- name: Install Android packages
+  shell: echo y | {{ sdk_tools_dir }}/android update sdk --no-ui --all --filter "{{ item }}"
+  with_items:
+    - tools
+    - platform-tools
+    - build-tools-24.0.1
+    - android-23

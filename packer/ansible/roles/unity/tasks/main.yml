@@ -1,0 +1,32 @@
+---
+
+- name: Download Unity
+  get_url:
+    url: "{{ unity_installer_basepath }}/{{ unity_installer }}"
+    dest: /tmp/{{ unity_installer }}
+  register: installer
+
+- name: Check file checksum
+  shell: "echo '{{ unity_checksum }} {{ installer.dest }}' | sha1sum -c -"
+
+- name: Install Unity
+  apt: deb="{{ installer.dest }}"
+
+- name: Cleanup installer
+  shell: "rm -rf {{ installer.dest }}"
+
+- name: Install xvfb (to allow Unity to run without graphics)
+  apt: name=xvfb state=latest
+
+- name: Copy Unity node packages script
+  copy:
+    src: install_node_packages.sh
+    dest: /var/lib/{{ automation_user }}/install_node_packages.sh
+    mode: "u+x"
+    owner: "{{ automation_user }}"
+    group: "{{ automation_user }}"
+  register: install_node_packages
+
+- name: Install node packages
+  shell: "{{ install_node_packages.dest }}"
+  become_user: "{{ automation_user }}"

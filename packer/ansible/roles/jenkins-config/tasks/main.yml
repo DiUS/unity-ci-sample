@@ -1,0 +1,25 @@
+---
+
+- name: Copy Jenkins config export script
+  copy:
+    src: jenkins_export.sh
+    dest: /var/lib/{{ automation_user }}/jenkins_export.sh
+    mode: "u+x"
+    owner: "{{ automation_user }}"
+    group: "{{ automation_user }}"
+
+- name: Copy Jenkins config import script
+  copy:
+    src: jenkins_import.sh
+    dest: /var/lib/{{ automation_user }}/jenkins_import.sh
+    mode: "u+x"
+    owner: "{{ automation_user }}"
+    group: "{{ automation_user }}"
+
+- name: Copy terminal colours script
+  copy:
+    src: term_colours.sh
+    dest: /var/lib/{{ automation_user }}/.term_colours.sh
+    mode: "u+x"
+    owner: "{{ automation_user }}"
+    group: "{{ automation_user }}"

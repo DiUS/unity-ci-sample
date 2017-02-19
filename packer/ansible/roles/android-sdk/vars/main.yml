@@ -1,0 +1,4 @@
+---
+
+sdk_install_dir: /opt/android-sdk-linux
+sdk_tools_dir: /opt/android-sdk-linux/tools

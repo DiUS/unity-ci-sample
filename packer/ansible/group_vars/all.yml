@@ -1,0 +1,7 @@
+---
+
+default_user: ubuntu
+automation_user: jenkins
+environment:
+  UNITY_HOME: "/opt/unity/Editor"
+

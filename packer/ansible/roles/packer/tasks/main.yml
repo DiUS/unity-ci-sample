@@ -1,0 +1,20 @@
+---
+
+- name: Install unzip for packer distro
+  apt: name=unzip state=latest
+
+- name: Download Packer distribution
+  get_url:
+    url: "{{ packer_distro_basepath }}/{{ packer_distro }}"
+    dest: /tmp/{{ packer_distro }}
+  register: packer_file
+  become_user: "{{ automation_user }}"
+
+- name: Unpack Packer distribution
+  unarchive:
+    remote_src: yes
+    src: "{{ packer_file.dest }}"
+    dest: /usr/local/bin/
+
+- name: Cleanup distribution
+  shell: "rm -rf {{ packer_file.dest }}"

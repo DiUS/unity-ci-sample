@@ -1,0 +1,17 @@
+---
+
+- name: Create .ssh dir
+  file:
+    path: /var/lib/{{ automation_user }}/.ssh
+    state: directory
+    mode: 0700
+    owner: "{{ automation_user }}"
+    group: "{{ automation_user }}"
+
+- name: Apply ssh config
+  template:
+    src: ssh/config.j2
+    dest: /var/lib/{{ automation_user }}/.ssh/config
+    mode: 0600
+    owner: "{{ automation_user }}"
+    group: "{{ automation_user }}"

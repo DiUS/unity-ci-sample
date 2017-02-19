@@ -1,0 +1,35 @@
+---
+
+- name: jenkins-worker
+  hosts: localhost
+  remote_user: "{{ default_user }}"
+  sudo: yes
+  vars:
+    provisioning_bucket: unity-ci-provisioning
+    # All installers copied to S3 manually for pack speed.
+
+    unity_installer_basepath: https://s3-ap-southeast-2.amazonaws.com/unity-ci-provisioning
+    unity_installer: unity-editor-5.4.0f3%2B20160727_amd64.deb
+    unity_checksum: "8f0540a95445cb50c592493d0b54f17f05389b85"
+    # from http://forum.unity3d.com/threads/unity-on-linux-release-notes-and-known-issues.350256/
+
+    android_sdk_basepath: https://s3-ap-southeast-2.amazonaws.com/unity-ci-provisioning
+    android_sdk: android-sdk_r24.4.1-linux.tgz
+    # from https://developer.android.com/studio/index.html under "Get just the command line tools"
+
+    packer_distro_basepath: https://s3-ap-southeast-2.amazonaws.com/unity-ci-provisioning
+    packer_distro: packer_0.10.1_linux_amd64.zip
+    # from https://www.packer.io/downloads.html
+
+  roles:
+  - ansible-role-git
+  - ansible-java8-oracle
+  - ansible-role-jenkins
+  - ssh
+  - aws
+  - jq
+  - htop
+  - jenkins-config
+  - packer
+  - android-sdk
+  - unity

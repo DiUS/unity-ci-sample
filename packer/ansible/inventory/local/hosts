@@ -1,0 +1,22 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'bundler/setup'
+
+require 'json'
+
+if ARGV[0] == "--host"
+  puts JSON.generate({})
+  exit 0
+end
+
+groups = {
+  local: {
+    hosts: ["localhost"],
+     vars: {
+       key_name: ENV['ANSIBLE_KEY_NAME'] || ENV['USER']
+     }
+  }
+}
+
+puts JSON.generate(groups)
